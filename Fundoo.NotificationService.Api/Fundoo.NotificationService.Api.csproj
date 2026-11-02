@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <UserSecretsId>88be624f-f2b4-4e2f-af32-aaa815424c24</UserSecretsId>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.29" />
+        <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Fundoo.NotificationService.Application\Fundoo.NotificationService.Application.csproj" />
+      <ProjectReference Include="..\Fundoo.NotificationService.Infrastructure\Fundoo.NotificationService.Infrastructure.csproj" />
+      <ProjectReference Include="..\Fundoo.User.Application\Fundoo.User.Application.csproj" />
+    </ItemGroup>
+
+</Project>
