@@ -60,5 +60,27 @@ public class UserRepository(UserDbContext dbContext)
                 token => token.TokenHash == tokenHash,
                 cancellationToken);
     }
+    
+    public async Task<ExternalLogin?> GetExternalLoginAsync(
+        string provider,
+        string providerUserId,
+        CancellationToken cancellationToken)
+    {
+        return await dbContext.ExternalLogins
+            .Include(externalLogin => externalLogin.User)
+            .FirstOrDefaultAsync(
+                externalLogin =>
+                    externalLogin.Provider == provider &&
+                    externalLogin.ProviderUserId == providerUserId,
+                cancellationToken);
+    }
 
+    public async Task AddExternalLoginAsync(
+        ExternalLogin externalLogin,
+        CancellationToken cancellationToken)
+    {
+        await dbContext.ExternalLogins.AddAsync(
+            externalLogin,
+            cancellationToken);
+    }
 }

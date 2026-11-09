@@ -11,7 +11,7 @@
   "profiles": {
     "Fundoo.ApiGateway": {
       "commandName": "Project",
-      "launchBrowser": false,
+      "launchBrowser": true,
       "launchUrl": "swagger/index.html",
       "applicationUrl": "https://localhost:7000",
       "environmentVariables": {

@@ -14,7 +14,8 @@ public class UserDbContext : DbContext
 
     public DbSet<PasswordResetToken> PasswordResetTokens =>
         Set<PasswordResetToken>();
-    
+    public DbSet<ExternalLogin> ExternalLogins =>
+        Set<ExternalLogin>();
     
     
     
@@ -93,5 +94,22 @@ public class UserDbContext : DbContext
 
             entity.HasIndex(t => t.UserId);
         });
+            
+        modelBuilder.Entity<ExternalLogin>(entity =>
+        {
+            entity.HasIndex(e => new
+                {
+                    e.Provider,
+                    e.ProviderUserId
+                })
+                .IsUnique();
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.ExternalLogins)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
     }
+    
+    
+    
 }

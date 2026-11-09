@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using Fundoo.User.Application.Interfaces;
 using Fundoo.User.Domain.Entities;
@@ -44,5 +45,12 @@ public class JwtTokenService(
 
         return new JwtSecurityTokenHandler()
             .WriteToken(token);
+    }
+    
+    public string CreateRefreshToken()
+    {
+        var randomBytes = RandomNumberGenerator.GetBytes(64);
+
+        return Convert.ToBase64String(randomBytes);
     }
 }

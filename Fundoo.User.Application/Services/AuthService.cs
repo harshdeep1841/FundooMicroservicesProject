@@ -209,5 +209,94 @@ public class AuthService(
 
         return true;
     }
+    
+    
+    public async Task<string?> GoogleLoginAsync(
+    string googleUserId,
+    string email,
+    string? firstName,
+    string? lastName,
+    CancellationToken cancellationToken)
+{
+    // 1. Normalize email
+    var normalizedEmail = email.Trim().ToUpperInvariant();
+
+    // 2. Check whether this Google identity already exists
+    var externalLogin =
+        await userRepository.GetExternalLoginAsync(
+            "Google",
+            googleUserId,
+            cancellationToken);
+
+    AppUser? user;
+
+    if (externalLogin is not null)
+    {
+        // Existing Google identity
+        user = externalLogin.User;
+    }
+    else
+    {
+        // 3. Google identity doesn't exist.
+        // Check whether a Fundoo account already exists
+        // with the same email.
+        user = await userRepository.GetByNormalizedEmailAsync(
+            normalizedEmail,
+            cancellationToken);
+
+        if (user is null)
+        {
+            // 4. Register a new Fundoo user
+            user = new AppUser
+            {
+                Id = Guid.NewGuid(),
+                FirstName = firstName ?? "",
+                LastName = lastName ?? "",
+                Email = email.Trim(),
+                NormalizedEmail = normalizedEmail,
+                PasswordHash = "",
+                IsActive = true,
+                CreatedAtUtc = DateTime.UtcNow,
+                UpdatedAtUtc = DateTime.UtcNow
+            };
+
+            await userRepository.AddAsync(
+                user,
+                cancellationToken);
+
+            await userRepository.SaveChangesAsync(
+                cancellationToken);
+        }
+
+        // 5. Link Google identity to the Fundoo user
+        externalLogin = new ExternalLogin
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            Provider = "Google",
+            ProviderUserId = googleUserId
+        };
+
+        await userRepository.AddExternalLoginAsync(
+            externalLogin,
+            cancellationToken);
+
+        await userRepository.SaveChangesAsync(
+            cancellationToken);
+    }
+
+    // 6. Check whether Fundoo account is active
+    if (!user.IsActive)
+    {
+        logger.LogWarning(
+            "Google login rejected for inactive user {UserId}.",
+            user.Id);
+
+        return null;
+    }
+
+    // 7. Generate Fundoo JWT
+    return tokenService.CreateAccessToken(user);
+}
 
 }

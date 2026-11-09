@@ -1,4 +1,7 @@
 
+using FluentValidation;
+using FluentValidation.AspNetCore;
+using Fundoo.User.Api.Validation;
 using Fundoo.User.Infrastructure;
 using Microsoft.AspNetCore.RateLimiting;
 
@@ -6,7 +9,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Register controllers
 builder.Services.AddControllers();
+builder.Services.AddFluentValidationAutoValidation();
 
+builder.Services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>();
 // Register infrastructure dependencies
 builder.Services.AddUserInfrastructure(builder.Configuration);
 

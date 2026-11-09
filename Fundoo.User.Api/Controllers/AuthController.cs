@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Fundoo.User.Api.Contracts;
 using Fundoo.User.Application.Interfaces;
 using Fundoo.User.Domain.Entities;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -121,6 +122,83 @@ public class AuthController(IAuthService authService) : ControllerBase
         return Ok(new
         {
             message = "Password reset successfully."
+        });
+    }
+    
+    
+    [HttpGet("google-login")]
+    public IActionResult GoogleLogin()
+    {
+        var properties = new AuthenticationProperties
+        {
+            RedirectUri = Url.Action(nameof(GoogleComplete))
+        };
+
+        return Challenge(properties, "Google");
+    }
+
+    [AllowAnonymous]
+    [HttpGet("google-complete")]
+    public async Task<IActionResult> GoogleComplete(
+        CancellationToken cancellationToken)
+    {
+        // Step 1: Authenticate using the Google authentication cookie
+        var result = await HttpContext.AuthenticateAsync("GoogleCookie");
+
+        if (!result.Succeeded || result.Principal is null)
+        {
+            return Unauthorized(new
+            {
+                message = "Google authentication failed."
+            });
+        }
+
+        // Step 2: Extract claims from the authenticated principal
+        var principal = result.Principal;
+
+        var googleUserId =
+            principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        var email =
+            principal.FindFirst(ClaimTypes.Email)?.Value;
+
+        var firstName =
+            principal.FindFirst(ClaimTypes.GivenName)?.Value;
+
+        var lastName =
+            principal.FindFirst(ClaimTypes.Surname)?.Value;
+
+        // Step 3: Ensure required claims are available
+        if (string.IsNullOrWhiteSpace(googleUserId) ||
+            string.IsNullOrWhiteSpace(email))
+        {
+            return Unauthorized(new
+            {
+                message = "Required Google claims are missing."
+            });
+        }
+
+        // Step 4: Call AuthService
+        var token = await authService.GoogleLoginAsync(
+            googleUserId,
+            email,
+            firstName,
+            lastName,
+            cancellationToken);
+
+        // Step 5: Check Fundoo login result
+        if (token is null)
+        {
+            return Unauthorized(new
+            {
+                message = "Your Fundoo account is inactive."
+            });
+        }
+
+        // Step 6: Return Fundoo JWT
+        return Ok(new AuthResponse
+        {
+            AccessToken = token
         });
     }
 

@@ -24,4 +24,11 @@ public interface IAuthService
         string newPassword,
         CancellationToken cancellationToken);
 
+    public Task<string?> GoogleLoginAsync(
+        string googleUserId,
+        string email,
+        string? firstName,
+        string? lastName,
+        CancellationToken cancellationToken);
+
 }

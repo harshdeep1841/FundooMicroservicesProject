@@ -4,7 +4,7 @@
     {
       "SwaggerKey": "user",
       "UpstreamPathTemplate": "/api/auth/{everything}",
-      "UpstreamHttpMethod": ["POST"],
+      "UpstreamHttpMethod": ["GET","POST", "PUT", "DELETE", "PATCH"],
       "DownstreamPathTemplate": "/api/auth/{everything}",
       "DownstreamScheme": "https",
       "DownstreamHostAndPorts": [
@@ -25,7 +25,7 @@
     {
       "SwaggerKey": "notes",
       "UpstreamPathTemplate": "/api/notes/{everything}",
-      "UpstreamHttpMethod": ["GET"],
+      "UpstreamHttpMethod": ["GET","POST", "PUT", "DELETE", "PATCH"],
       "DownstreamPathTemplate": "/api/notes/{everything}",
       "DownstreamScheme": "https",
       "DownstreamHostAndPorts": [
