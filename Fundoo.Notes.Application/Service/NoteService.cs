@@ -4,7 +4,9 @@ using Fundoo.Notes.Domain.Entities;
 
 namespace Fundoo.Notes.Application.Services;
 
-public class NoteService(INoteRepository noteRepository) : INoteService
+public class NoteService(
+    INoteRepository noteRepository,
+    INotesCache notesCache) : INoteService
 {
     public async Task<Note> CreateNoteAsync(
         Guid userId,
@@ -28,15 +30,34 @@ public class NoteService(INoteRepository noteRepository) : INoteService
 
         await noteRepository.AddAsync(note, cancellationToken);
 
+        await notesCache.RemoveUserNotesAsync(
+            userId,
+            cancellationToken);
+
         return note;
     }
 
-    public Task<IReadOnlyList<Note>> GetMyNotesAsync(
+    public async Task<IReadOnlyList<Note>> GetMyNotesAsync(
         Guid userId,
         CancellationToken cancellationToken)
     {
-        return noteRepository.GetAllByUserIdAsync(
-            userId, cancellationToken);
+        var cachedNotes = await notesCache.GetUserNotesAsync(
+            userId,
+            cancellationToken);
+
+        if (cachedNotes is not null)
+            return cachedNotes;
+
+        var notes = await noteRepository.GetAllByUserIdAsync(
+            userId,
+            cancellationToken);
+
+        await notesCache.SetUserNotesAsync(
+            userId,
+            notes,
+            cancellationToken);
+
+        return notes;
     }
 
     public Task<Note?> GetNoteByIdAsync(
@@ -45,7 +66,9 @@ public class NoteService(INoteRepository noteRepository) : INoteService
         CancellationToken cancellationToken)
     {
         return noteRepository.GetByIdAsync(
-            noteId, userId, cancellationToken);
+            noteId,
+            userId,
+            cancellationToken);
     }
 
     public async Task<Note?> UpdateNoteAsync(
@@ -56,7 +79,9 @@ public class NoteService(INoteRepository noteRepository) : INoteService
         CancellationToken cancellationToken)
     {
         var note = await noteRepository.GetByIdAsync(
-            noteId, userId, cancellationToken);
+            noteId,
+            userId,
+            cancellationToken);
 
         if (note is null || note.IsTrashed)
             return null;
@@ -66,62 +91,130 @@ public class NoteService(INoteRepository noteRepository) : INoteService
         note.UpdatedAtUtc = DateTime.UtcNow;
 
         var updated = await noteRepository.UpdateAsync(
-            note, cancellationToken);
+            note,
+            cancellationToken);
 
-        return updated ? note : null;
+        if (!updated)
+            return null;
+
+        await notesCache.RemoveUserNotesAsync(
+            userId,
+            cancellationToken);
+
+        return note;
     }
 
-    public Task<bool> ArchiveNoteAsync(
+    public async Task<bool> ArchiveNoteAsync(
         Guid noteId,
         Guid userId,
         CancellationToken cancellationToken)
     {
-        return noteRepository.SetArchiveStateAsync(
-            noteId, userId, true, cancellationToken);
+        var archived = await noteRepository.SetArchiveStateAsync(
+            noteId,
+            userId,
+            true,
+            cancellationToken);
+
+        if (archived)
+        {
+            await notesCache.RemoveUserNotesAsync(
+                userId,
+                cancellationToken);
+        }
+
+        return archived;
     }
 
-    public Task<bool> UnarchiveNoteAsync(
+    public async Task<bool> UnarchiveNoteAsync(
         Guid noteId,
         Guid userId,
         CancellationToken cancellationToken)
     {
-        return noteRepository.SetArchiveStateAsync(
-            noteId, userId, false, cancellationToken);
+        var unarchived = await noteRepository.SetArchiveStateAsync(
+            noteId,
+            userId,
+            false,
+            cancellationToken);
+
+        if (unarchived)
+        {
+            await notesCache.RemoveUserNotesAsync(
+                userId,
+                cancellationToken);
+        }
+
+        return unarchived;
     }
 
-    public Task<bool> TrashNoteAsync(
+    public async Task<bool> TrashNoteAsync(
         Guid noteId,
         Guid userId,
         CancellationToken cancellationToken)
     {
-        return noteRepository.SetTrashStateAsync(
-            noteId, userId, true, cancellationToken);
+        var trashed = await noteRepository.SetTrashStateAsync(
+            noteId,
+            userId,
+            true,
+            cancellationToken);
+
+        if (trashed)
+        {
+            await notesCache.RemoveUserNotesAsync(
+                userId,
+                cancellationToken);
+        }
+
+        return trashed;
     }
 
-    public Task<bool> RestoreNoteAsync(
+    public async Task<bool> RestoreNoteAsync(
         Guid noteId,
         Guid userId,
         CancellationToken cancellationToken)
     {
-        return noteRepository.SetTrashStateAsync(
-            noteId, userId, false, cancellationToken);
+        var restored = await noteRepository.SetTrashStateAsync(
+            noteId,
+            userId,
+            false,
+            cancellationToken);
+
+        if (restored)
+        {
+            await notesCache.RemoveUserNotesAsync(
+                userId,
+                cancellationToken);
+        }
+
+        return restored;
     }
 
-    public Task<bool> PermanentlyDeleteNoteAsync(
+    public async Task<bool> PermanentlyDeleteNoteAsync(
         Guid noteId,
         Guid userId,
         CancellationToken cancellationToken)
     {
-        return noteRepository.PermanentlyDeleteAsync(
-            noteId, userId, cancellationToken);
+        var deleted = await noteRepository.PermanentlyDeleteAsync(
+            noteId,
+            userId,
+            cancellationToken);
+
+        if (deleted)
+        {
+            await notesCache.RemoveUserNotesAsync(
+                userId,
+                cancellationToken);
+        }
+
+        return deleted;
     }
-    
+
     public Task<IReadOnlyList<Note>> GetArchivedNotesAsync(
         Guid userId,
         CancellationToken cancellationToken)
     {
         return noteRepository.GetArchivedByUserIdAsync(
-            userId, cancellationToken);
+            userId,
+            cancellationToken);
     }
 
     public Task<IReadOnlyList<Note>> GetTrashedNotesAsync(
@@ -129,6 +222,7 @@ public class NoteService(INoteRepository noteRepository) : INoteService
         CancellationToken cancellationToken)
     {
         return noteRepository.GetTrashedByUserIdAsync(
-            userId, cancellationToken);
+            userId,
+            cancellationToken);
     }
 }
