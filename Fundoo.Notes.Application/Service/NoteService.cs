@@ -60,15 +60,32 @@ public class NoteService(
         return notes;
     }
 
-    public Task<Note?> GetNoteByIdAsync(
+    public async Task<Note?> GetNoteByIdAsync(
         Guid noteId,
         Guid userId,
         CancellationToken cancellationToken)
     {
-        return noteRepository.GetByIdAsync(
+        var cachedNote = await notesCache.GetNoteAsync(
+            noteId,
+            cancellationToken);
+
+        if (cachedNote is not null)
+            return cachedNote;
+
+        var note = await noteRepository.GetByIdAsync(
             noteId,
             userId,
             cancellationToken);
+
+        if (note is null)
+            return null;
+
+        await notesCache.SetNoteAsync(
+            noteId,
+            note,
+            cancellationToken);
+
+        return note;
     }
 
     public async Task<Note?> UpdateNoteAsync(

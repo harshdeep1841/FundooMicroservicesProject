@@ -16,4 +16,13 @@ public interface INotesCache
     Task RemoveUserNotesAsync(
         Guid userId,
         CancellationToken cancellationToken);
+    
+    Task<Note?> GetNoteAsync(
+        Guid noteId,
+        CancellationToken cancellationToken);
+
+    Task SetNoteAsync(
+        Guid noteId,
+        Note note,
+        CancellationToken cancellationToken);
 }

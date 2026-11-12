@@ -1,4 +1,4 @@
-
+using Asp.Versioning;
 using Fundoo.User.Api.Contracts;
 using Fundoo.User.Application.Interfaces;
 using Fundoo.User.Domain.Entities;
@@ -7,9 +7,10 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace Fundoo.User.Api.Controllers.V2;
 
-[EnableRateLimiting("UserApiPolicy")]
 [ApiController]
-[Route("api/v2/auth")]
+[ApiVersion(2.0)]
+[Route("api/v{version:apiVersion}/auth")]
+[EnableRateLimiting("UserApiPolicy")]
 public class AuthController(IAuthService authService) : ControllerBase
 {
     [HttpPost("register")]
@@ -34,7 +35,7 @@ public class AuthController(IAuthService authService) : ControllerBase
 
             return StatusCode(
                 StatusCodes.Status201Created,
-                new { message = "Account created successfully." });
+                new { message = "Account created successfully (V2)." });
         }
         catch (InvalidOperationException ex)
         {
@@ -62,60 +63,5 @@ public class AuthController(IAuthService authService) : ControllerBase
         {
             AccessToken = token
         });
-    }
-
-    [HttpPost("forgot-password")]
-    public async Task<IActionResult> ForgotPassword(
-        ForgotPasswordRequest request,
-        CancellationToken cancellationToken)
-    {
-        await authService.ForgotPasswordAsync(
-            request.Email,
-            cancellationToken);
-
-        return Ok(new
-        {
-            message = "If an account exists, password reset instructions will be sent."
-        });
-    }
-
-    [HttpPost("reset-password")]
-    public async Task<IActionResult> ResetPassword(
-        ResetPasswordRequest request,
-        CancellationToken cancellationToken)
-    {
-        var succeeded = await authService.ResetPasswordAsync(
-            request.Token,
-            request.NewPassword,
-            cancellationToken);
-
-        if (!succeeded)
-        {
-            return BadRequest(
-                new { message = "The reset token is invalid or has expired." });
-        }
-
-        return Ok(
-            new { message = "Password reset successfully." });
-    }
-
-    [HttpPost("refresh")]
-    public async Task<IActionResult> RefreshToken(
-        CancellationToken cancellationToken)
-    {
-        // Refresh-token implementation will be added next.
-        await Task.CompletedTask;
-
-        return StatusCode(StatusCodes.Status501NotImplemented);
-    }
-
-    [HttpPost("logout")]
-    public async Task<IActionResult> Logout(
-        CancellationToken cancellationToken)
-    {
-        // Refresh-token revocation will be implemented next.
-        await Task.CompletedTask;
-
-        return StatusCode(StatusCodes.Status501NotImplemented);
     }
 }

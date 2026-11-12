@@ -1,61 +1,84 @@
-
+using Asp.Versioning;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Fundoo.User.Api.Validation;
 using Fundoo.User.Infrastructure;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Register controllers
 builder.Services.AddControllers();
+
 builder.Services.AddFluentValidationAutoValidation();
 
 builder.Services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>();
-// Register infrastructure dependencies
+
 builder.Services.AddUserInfrastructure(builder.Configuration);
 
-// Swagger
+builder.Services
+    .AddApiVersioning(options =>
+    {
+        options.DefaultApiVersion = new ApiVersion(1, 0);
+        options.AssumeDefaultVersionWhenUnspecified = true;
+        options.ReportApiVersions = true;
+    })
+    .AddMvc()
+    .AddApiExplorer(options =>
+    {
+        options.GroupNameFormat = "'v'VVV";
+        options.SubstituteApiVersionInUrl = true;
+    });
+
 builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddSwaggerGen(options =>
 {
-    options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    options.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "Fundoo User API",
+        Title = "Fundoo.User.Api",
         Version = "v1",
         Description = "User registration and authentication API"
     });
 
-    options.AddSecurityDefinition("Bearer",
-        new Microsoft.OpenApi.Models.OpenApiSecurityScheme
-        {
-            Name = "Authorization",
-            Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
-            Scheme = "bearer",
-            BearerFormat = "JWT",
-            In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-            Description = "Enter your JWT access token."
-        });
+    options.SwaggerDoc("v2", new OpenApiInfo
+    {
+        Title = "Fundoo.User.Api",
+        Version = "v2",
+        Description = "Fundoo User API Version 2"
+    });
 
-    options.AddSecurityRequirement(
-        new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    options.DocInclusionPredicate((documentName, apiDescription) =>
+    {
+        return apiDescription.GroupName == documentName;
+    });
+
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Enter your JWT access token."
+    });
+
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
         {
+            new OpenApiSecurityScheme
             {
-                new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+                Reference = new OpenApiReference
                 {
-                    Reference = new Microsoft.OpenApi.Models.OpenApiReference
-                    {
-                        Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
-                        Id = "Bearer"
-                    }
-                },
-                Array.Empty<string>()
-            }
-        });
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
 });
 
-// Rate Limiting
 builder.Services.AddRateLimiter(options =>
 {
     options.AddFixedWindowLimiter("UserApiPolicy", limiter =>
@@ -71,22 +94,30 @@ builder.Services.AddRateLimiter(options =>
 
 var app = builder.Build();
 
-// Swagger UI
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint(
+            "/swagger/v1/swagger.json",
+            "Fundoo.User.Api v1");
+
+        options.SwaggerEndpoint(
+            "/swagger/v2/swagger.json",
+            "Fundoo.User.Api v2");
+    });
 }
 
-// Middleware pipeline
 app.UseHttpsRedirection();
 
 app.UseRateLimiter();
 
 app.UseAuthentication();
+
 app.UseAuthorization();
 
-// Endpoints
 app.MapGet("/test", () => "Hello World!");
 
 app.MapControllers();

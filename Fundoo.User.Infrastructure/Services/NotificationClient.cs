@@ -45,6 +45,7 @@ public sealed class NotificationClient(
         {
             var responseBody =
                 await response.Content.ReadAsStringAsync(
+           
                     cancellationToken);
 
             throw new HttpRequestException(
