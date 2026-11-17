@@ -1,15 +1,28 @@
 
 using System.Text;
 using Fundoo.Notes.Infrastructure;
+using Fundoo.Observability;
 using HealthChecks.UI.Client;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Serilog;
+
 
 var builder = WebApplication.CreateBuilder(args);
-
+builder.Host.UseSerilog((context, configuration) =>
+{
+    configuration
+        .ReadFrom.Configuration(context.Configuration)
+        .Enrich.FromLogContext()
+        .WriteTo.Console(
+            outputTemplate:
+            "[{Timestamp:HH:mm:ss} {Level:u3}] " +
+            "[CorrelationId: {CorrelationId}] " +
+            "{Message:lj}{NewLine}{Exception}");
+});
 builder.Services.AddNotesInfrastructure(builder.Configuration);
 
 var connectionString =
@@ -88,6 +101,7 @@ builder.Services.AddControllers();
 
 builder.Services.AddEndpointsApiExplorer();
 
+
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
@@ -125,15 +139,15 @@ builder.Services.AddSwaggerGen(options =>
             }
         });
 });
-
+builder.Services.AddFundooCorrelationIds();
 var app = builder.Build();
+app.UseMiddleware<CorrelationIdMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
 app.UseHttpsRedirection();
 
 app.UseAuthentication();

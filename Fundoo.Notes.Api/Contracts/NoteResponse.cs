@@ -3,6 +3,7 @@ namespace Fundoo.Notes.Api.Contracts;
 public class NoteResponse
 {
     public Guid Id { get; set; }
+    public Guid UserId { get; set; }
 
     public string Title { get; set; } = string.Empty;
 

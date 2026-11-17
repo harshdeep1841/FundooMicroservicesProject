@@ -142,7 +142,6 @@ public class AuthController(IAuthService authService) : ControllerBase
     public async Task<IActionResult> GoogleComplete(
         CancellationToken cancellationToken)
     {
-        // Step 1: Authenticate using the Google authentication cookie
         var result = await HttpContext.AuthenticateAsync("GoogleCookie");
 
         if (!result.Succeeded || result.Principal is null)
@@ -153,7 +152,6 @@ public class AuthController(IAuthService authService) : ControllerBase
             });
         }
 
-        // Step 2: Extract claims from the authenticated principal
         var principal = result.Principal;
 
         var googleUserId =
@@ -168,7 +166,6 @@ public class AuthController(IAuthService authService) : ControllerBase
         var lastName =
             principal.FindFirst(ClaimTypes.Surname)?.Value;
 
-        // Step 3: Ensure required claims are available
         if (string.IsNullOrWhiteSpace(googleUserId) ||
             string.IsNullOrWhiteSpace(email))
         {
@@ -178,7 +175,6 @@ public class AuthController(IAuthService authService) : ControllerBase
             });
         }
 
-        // Step 4: Call AuthService
         var token = await authService.GoogleLoginAsync(
             googleUserId,
             email,
@@ -186,7 +182,6 @@ public class AuthController(IAuthService authService) : ControllerBase
             lastName,
             cancellationToken);
 
-        // Step 5: Check Fundoo login result
         if (token is null)
         {
             return Unauthorized(new
@@ -195,7 +190,6 @@ public class AuthController(IAuthService authService) : ControllerBase
             });
         }
 
-        // Step 6: Return Fundoo JWT
         return Ok(new AuthResponse
         {
             AccessToken = token

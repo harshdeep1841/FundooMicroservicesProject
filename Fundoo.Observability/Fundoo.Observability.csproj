@@ -1,0 +1,31 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <Reference Include="Microsoft.AspNetCore.Diagnostics">
+        <HintPath>..\..\..\.dotnet\packs\Microsoft.AspNetCore.App.Ref\8.0.29\ref\net8.0\Microsoft.AspNetCore.Diagnostics.dll</HintPath>
+      </Reference>
+      <Reference Include="Microsoft.AspNetCore.Http.Abstractions">
+        <HintPath>..\..\..\.dotnet\packs\Microsoft.AspNetCore.App.Ref\8.0.29\ref\net8.0\Microsoft.AspNetCore.Http.Abstractions.dll</HintPath>
+      </Reference>
+      <Reference Include="Microsoft.Extensions.Logging.Abstractions">
+        <HintPath>..\..\..\.dotnet\packs\Microsoft.AspNetCore.App.Ref\8.0.29\ref\net8.0\Microsoft.Extensions.Logging.Abstractions.dll</HintPath>
+      </Reference>
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Microsoft.AspNetCore.Mvc" Version="2.3.14" />
+      <PackageReference Include="Serilog.Enrichers.CorrelationId" Version="3.0.1" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+        <PackageReference Include="Serilog" Version="4.2.0" />
+    </ItemGroup>
+
+</Project>

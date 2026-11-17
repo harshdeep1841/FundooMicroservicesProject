@@ -11,8 +11,9 @@ namespace Fundoo.Notes.Api.Controllers;
 [ApiController]
 [Route("api/notes")]
 public class NotesController(
-    INoteService noteService) : ControllerBase
+    INoteService noteService, ILogger<NotesController> logger) : ControllerBase
 {
+
     [HttpPost]
     public async Task<IActionResult> CreateNote(
         CreateNoteRequest request,
@@ -52,7 +53,7 @@ public class NotesController(
             userId, cancellationToken);
 
         var response = notes.Select(MapToResponse).ToList();
-
+        logger.LogInformation("Testing correlation ID logging.");
         return Ok(response);
     }
 
@@ -81,6 +82,7 @@ public class NotesController(
         return new NoteResponse
         {
             Id = note.Id,
+            UserId = note.UserId,
             Title = note.Title,
             Content = note.Content,
             IsArchived = note.IsArchived,

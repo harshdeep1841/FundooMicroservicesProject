@@ -42,6 +42,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Fundoo.NotificationService.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Fundoo.NotificationService.Infrastructure", "Fundoo.NotificationService.Infrastructure\Fundoo.NotificationService.Infrastructure.csproj", "{9E3C2A2A-2560-4F69-95FE-9BF72E2B1E85}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "BuildingBlocks", "BuildingBlocks", "{A4707D44-319A-417B-BB5E-619AB0BEB70B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Fundoo.Observability", "Fundoo.Observability\Fundoo.Observability.csproj", "{61055AA5-01AC-43D9-8E42-70B7FB573B86}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -67,6 +71,8 @@ Global
 		{D123D63A-BA35-4AD5-AECC-8F93D8DD3FD5} = {80E887E7-D946-4A73-B61A-16735FB10418}
 		{B257C206-52EC-4E5D-8033-1D991914CC67} = {80E887E7-D946-4A73-B61A-16735FB10418}
 		{9E3C2A2A-2560-4F69-95FE-9BF72E2B1E85} = {80E887E7-D946-4A73-B61A-16735FB10418}
+		{A4707D44-319A-417B-BB5E-619AB0BEB70B} = {3DB4A5E2-E812-42CD-92F8-D4105D784BF9}
+		{61055AA5-01AC-43D9-8E42-70B7FB573B86} = {A4707D44-319A-417B-BB5E-619AB0BEB70B}
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{FA70C518-1BFA-4F0C-B041-5449F83DF5AA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
@@ -125,5 +131,9 @@ Global
 		{9E3C2A2A-2560-4F69-95FE-9BF72E2B1E85}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9E3C2A2A-2560-4F69-95FE-9BF72E2B1E85}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9E3C2A2A-2560-4F69-95FE-9BF72E2B1E85}.Release|Any CPU.Build.0 = Release|Any CPU
+		{61055AA5-01AC-43D9-8E42-70B7FB573B86}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{61055AA5-01AC-43D9-8E42-70B7FB573B86}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{61055AA5-01AC-43D9-8E42-70B7FB573B86}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{61055AA5-01AC-43D9-8E42-70B7FB573B86}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
