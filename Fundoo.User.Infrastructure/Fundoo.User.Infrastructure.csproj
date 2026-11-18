@@ -2,6 +2,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Fundoo.Notes.Domain\Fundoo.Notes.Domain.csproj" />
+      <ProjectReference Include="..\Fundoo.Observability\Fundoo.Observability.csproj" />
       <ProjectReference Include="..\Fundoo.User.Application\Fundoo.User.Application.csproj" />
     </ItemGroup>
 

@@ -9,12 +9,14 @@
 
     <ItemGroup>
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.29" />
+        <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
         <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
     </ItemGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\Fundoo.NotificationService.Application\Fundoo.NotificationService.Application.csproj" />
       <ProjectReference Include="..\Fundoo.NotificationService.Infrastructure\Fundoo.NotificationService.Infrastructure.csproj" />
+      <ProjectReference Include="..\Fundoo.Observability\Fundoo.Observability.csproj" />
       <ProjectReference Include="..\Fundoo.User.Application\Fundoo.User.Application.csproj" />
     </ItemGroup>
 

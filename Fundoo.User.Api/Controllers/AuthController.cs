@@ -12,7 +12,7 @@ namespace Fundoo.User.Api.Controllers;
 [EnableRateLimiting("UserApiPolicy")]
 [ApiController]
 [Route("api/auth")]
-public class AuthController(IAuthService authService) : ControllerBase
+public class AuthController(IAuthService authService, ILogger<AuthController> logger) : ControllerBase
 {
     
     
@@ -91,6 +91,9 @@ public class AuthController(IAuthService authService) : ControllerBase
         ForgotPasswordRequest request,
         CancellationToken cancellationToken)
     {
+        
+        logger.LogInformation(
+            "Forgot password request received.");
         await authService.ForgotPasswordAsync(
             request.Email, cancellationToken);
 

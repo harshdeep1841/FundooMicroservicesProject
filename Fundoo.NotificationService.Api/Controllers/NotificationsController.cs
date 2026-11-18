@@ -15,6 +15,8 @@ public class NotificationsController(
         [FromBody] SendEmailRequest request,
         CancellationToken cancellationToken)
     {
+        logger.LogInformation(
+            "Password reset notification request received.");
         using var registration = cancellationToken.Register(() =>
         {
             logger.LogWarning(

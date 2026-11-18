@@ -2,7 +2,7 @@ using System.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Serilog.Context;
 
-namespace Fundoo.Observability;
+namespace  Fundoo.Observability;
 
 public sealed class TraceIdLogContextMiddleware
 {

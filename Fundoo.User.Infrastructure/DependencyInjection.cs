@@ -1,5 +1,6 @@
 
 using System.Text;
+using Fundoo.Observability;
 using Fundoo.User.Application.Interfaces;
 using Fundoo.User.Application.Services;
 using Fundoo.User.Infrastructure.Persistence;
@@ -181,6 +182,11 @@ public static class DependencyInjection
 
                     client.Timeout = Timeout.InfiniteTimeSpan;
                 })
+
+            // ADD THIS: Propagate the correlation ID
+            .AddHttpMessageHandler<CorrelationIdDelegatingHandler>()
+
+            // Your existing resilience configuration
             .AddStandardResilienceHandler(options =>
             {
                 // Concurrency limiter (bulkhead)

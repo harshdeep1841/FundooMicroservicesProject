@@ -1,12 +1,26 @@
 using Asp.Versioning;
 using FluentValidation;
 using FluentValidation.AspNetCore;
+using Fundoo.Observability;
 using Fundoo.User.Api.Validation;
 using Fundoo.User.Infrastructure;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.OpenApi.Models;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+//COIDS
+builder.Host.UseSerilog((context, configuration) =>
+{
+    configuration
+        .ReadFrom.Configuration(context.Configuration)
+        .Enrich.FromLogContext()
+        .WriteTo.Console(
+            outputTemplate:
+            "[{Timestamp:HH:mm:ss} {Level:u3}] " +
+            "[CorrelationId: {CorrelationId}] " +
+            "{Message:lj}{NewLine}{Exception}");
+});
 
 builder.Services.AddControllers();
 
@@ -92,8 +106,11 @@ builder.Services.AddRateLimiter(options =>
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 });
 
+//COIDS
+builder.Services.AddFundooCorrelationIds();
 var app = builder.Build();
-
+//COIDS
+app.UseMiddleware<CorrelationIdMiddleware>();
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

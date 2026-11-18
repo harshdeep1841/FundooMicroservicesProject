@@ -1,12 +1,13 @@
 using System.Net.Http.Json;
 using Fundoo.User.Application.Interfaces;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace Fundoo.User.Infrastructure.Services;
 
 public sealed class NotificationClient(
     HttpClient httpClient,
-    IConfiguration configuration) : INotificationClient
+    IConfiguration configuration, ILogger<NotificationClient> logger) : INotificationClient
 {
     public async Task SendEmailAsync(
         string to,
@@ -14,6 +15,8 @@ public sealed class NotificationClient(
         string body,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation(
+            "Calling Notification API for password reset.");
         var apiKey =
             configuration["NotificationService:ApiKey"];
 
@@ -55,5 +58,8 @@ public sealed class NotificationClient(
                 null,
                 response.StatusCode);
         }
+        
+        logger.LogInformation(
+            "Notification API returned successfully.");
     }
 }
