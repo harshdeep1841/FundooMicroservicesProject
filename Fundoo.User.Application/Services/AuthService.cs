@@ -1,6 +1,7 @@
 
 using System.Security.Cryptography;
 using System.Text;
+using Fundoo.User.Application.Events;
 using Fundoo.User.Application.Interfaces;
 using Fundoo.User.Domain.Entities;
 using Microsoft.Extensions.Logging;
@@ -12,6 +13,7 @@ public class AuthService(
     IPasswordHasher passwordHasher,
     ITokenService tokenService,
     INotificationClient notificationClient,
+    IPasswordResetEventPublisher passwordResetEventPublisher,
     ILogger<AuthService> logger) : IAuthService
 {
     public async Task<AppUser> RegisterAsync(
@@ -93,6 +95,7 @@ public class AuthService(
         return tokenService.CreateAccessToken(user);
     }
 
+  
     public async Task ForgotPasswordAsync(
         string email,
         CancellationToken cancellationToken)
@@ -137,19 +140,23 @@ public class AuthService(
         await userRepository.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation(
-            "Password-reset token saved. Attempting notification delivery.");
+            "Password-reset token saved. Publishing notification event.");
 
         try
         {
-            await notificationClient.SendEmailAsync(
+            var passwordResetEvent = new PasswordResetRequestedEvent(
+                Guid.NewGuid(),
                 user.Email,
-                "Reset your Fundoo password",
-                $"Your password-reset token is: {rawToken}\n\n" +
-                "It expires in 15 minutes and can only be used once.",
+                rawToken,
+                resetToken.ExpiresAtUtc
+            );
+
+            await passwordResetEventPublisher.PublishAsync(
+                passwordResetEvent,
                 cancellationToken);
 
             logger.LogInformation(
-                "Password-reset notification request completed.");
+                "Password-reset notification event published successfully.");
         }
         catch (OperationCanceledException)
             when (cancellationToken.IsCancellationRequested)
@@ -160,11 +167,12 @@ public class AuthService(
         {
             logger.LogError(
                 ex,
-                "Password-reset notification delivery failed.");
+                "Failed to publish password-reset notification event.");
 
             throw;
         }
     }
+
 
     public async Task<bool> ResetPasswordAsync(
         string token,
