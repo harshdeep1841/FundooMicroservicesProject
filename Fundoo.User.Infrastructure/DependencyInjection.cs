@@ -1,8 +1,10 @@
 
 using System.Text;
+using Confluent.Kafka;
 using Fundoo.Observability;
 using Fundoo.User.Application.Interfaces;
 using Fundoo.User.Application.Services;
+using Fundoo.User.Infrastructure.Messaging.Kafka;
 using Fundoo.User.Infrastructure.Persistence;
 using Fundoo.User.Infrastructure.Repositories;
 using Fundoo.User.Infrastructure.Security;
@@ -27,7 +29,7 @@ public static class DependencyInjection
         AddRepositories(services);
         AddSecurity(services, configuration);
         AddNotificationClient(services, configuration);
-
+        AddKafkaProducer(services, configuration);
         return services;
     }
 
@@ -214,5 +216,45 @@ public static class DependencyInjection
 
                 options.Retry.DisableForUnsafeHttpMethods();
             });
+    }
+    
+    private static void AddKafkaProducer(
+        IServiceCollection services,
+        IConfiguration configuration)
+    {
+        var kafkaSection = configuration.GetSection("Kafka");
+
+        services.Configure<KafkaOptions>(kafkaSection);
+
+        var kafkaOptions = kafkaSection.Get<KafkaOptions>()
+                           ?? throw new InvalidOperationException(
+                               "Kafka configuration is missing.");
+
+        if (string.IsNullOrWhiteSpace(kafkaOptions.BootstrapServers))
+        {
+            throw new InvalidOperationException(
+                "Kafka BootstrapServers is not configured.");
+        }
+
+        if (string.IsNullOrWhiteSpace(kafkaOptions.PasswordResetTopic))
+        {
+            throw new InvalidOperationException(
+                "Kafka PasswordResetTopic is not configured.");
+        }
+
+        var producerConfig = new ProducerConfig
+        {
+            BootstrapServers = kafkaOptions.BootstrapServers,
+            Acks = Acks.All,
+            EnableIdempotence = true
+        };
+
+        services.AddSingleton<IProducer<string, string>>(
+            _ => new ProducerBuilder<string, string>(producerConfig)
+                .Build());
+
+        services.AddSingleton<
+            IPasswordResetEventPublisher,
+            KafkaPasswordResetEventPublisher>();
     }
 }
