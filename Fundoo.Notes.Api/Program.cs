@@ -1,4 +1,3 @@
-
 using System.Text;
 using Fundoo.Notes.Infrastructure;
 using Fundoo.Observability;
@@ -10,8 +9,8 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
 
-
 var builder = WebApplication.CreateBuilder(args);
+
 builder.Host.UseSerilog((context, configuration) =>
 {
     configuration
@@ -23,6 +22,7 @@ builder.Host.UseSerilog((context, configuration) =>
             "[CorrelationId: {CorrelationId}] " +
             "{Message:lj}{NewLine}{Exception}");
 });
+
 builder.Services.AddNotesInfrastructure(builder.Configuration);
 
 var connectionString =
@@ -40,7 +40,6 @@ builder.Services.AddHealthChecks()
         "self",
         () => HealthCheckResult.Healthy(),
         tags: new[] { "live" });
-
 
 var signingKey =
     builder.Configuration["Jwt:SigningKey"]
@@ -66,14 +65,11 @@ builder.Services
             {
                 ValidateIssuer = true,
                 ValidIssuer = issuer,
-
                 ValidateAudience = true,
                 ValidAudience = audience,
-
                 ValidateIssuerSigningKey = true,
                 IssuerSigningKey = new SymmetricSecurityKey(
                     Encoding.UTF8.GetBytes(signingKey)),
-
                 ValidateLifetime = true,
                 ClockSkew = TimeSpan.FromMinutes(1)
             };
@@ -96,11 +92,8 @@ builder.Services
     });
 
 builder.Services.AddAuthorization();
-
 builder.Services.AddControllers();
-
 builder.Services.AddEndpointsApiExplorer();
-
 
 builder.Services.AddSwaggerGen(options =>
 {
@@ -119,8 +112,16 @@ builder.Services.AddSwaggerGen(options =>
             Scheme = "bearer",
             BearerFormat = "JWT",
             In = ParameterLocation.Header,
-            Description =
-                "Enter your JWT access token."
+            Description = "Enter your JWT access token."
+        });
+
+    options.AddSecurityDefinition("ClientId",
+        new OpenApiSecurityScheme
+        {
+            Name = "ClientId",
+            Type = SecuritySchemeType.ApiKey,
+            In = ParameterLocation.Header,
+            Description = "Enter your Ocelot Client ID. Example: test-client-1"
         });
 
     options.AddSecurityRequirement(
@@ -136,20 +137,31 @@ builder.Services.AddSwaggerGen(options =>
                     }
                 },
                 Array.Empty<string>()
+            },
+            {
+                new OpenApiSecurityScheme
+                {
+                    Reference = new OpenApiReference
+                    {
+                        Type = ReferenceType.SecurityScheme,
+                        Id = "ClientId"
+                    }
+                },
+                Array.Empty<string>()
             }
         });
 });
+
 builder.Services.AddFundooCorrelationIds();
+
 var app = builder.Build();
+
 app.UseMiddleware<CorrelationIdMiddleware>();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-app.UseHttpsRedirection();
+app.UseSwagger();
+app.UseSwaggerUI();
 
+app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 

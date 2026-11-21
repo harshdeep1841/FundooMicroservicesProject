@@ -1,37 +1,21 @@
-
 {
   "Routes": [
     {
       "SwaggerKey": "user",
       "UpstreamPathTemplate": "/api/auth/{everything}",
-      "UpstreamHttpMethod": ["GET","POST", "PUT", "DELETE", "PATCH"],
+      "UpstreamHttpMethod": [
+        "GET",
+        "POST",
+        "PUT",
+        "DELETE",
+        "PATCH"
+      ],
       "DownstreamPathTemplate": "/api/auth/{everything}",
-      "DownstreamScheme": "https",
+      "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
-          "Port": 7001
-        }
-      ]
-      ,
-      "RateLimitOptions": {
-        "ClientIdHeader": "ClientId",
-        "EnableRateLimiting": true,
-        "Limit": 5,
-        "Period": "10s",
-        "Wait": "20s"
-      }
-    },
-    {
-      "SwaggerKey": "notes",
-      "UpstreamPathTemplate": "/api/notes/{everything}",
-      "UpstreamHttpMethod": ["GET","POST", "PUT", "DELETE", "PATCH"],
-      "DownstreamPathTemplate": "/api/notes/{everything}",
-      "DownstreamScheme": "https",
-      "DownstreamHostAndPorts": [
-        {
-          "Host": "localhost",
-          "Port": 7002
+          "Host": "user-service",
+          "Port": 80
         }
       ],
       "RateLimitOptions": {
@@ -43,17 +27,30 @@
       }
     },
     {
-      "SwaggerKey": "notifications",
-      "UpstreamPathTemplate": "/api/notifications/{everything}",
-      "UpstreamHttpMethod": ["GET", "POST", "PUT", "DELETE", "PATCH"],
-      "DownstreamPathTemplate": "/api/notifications/{everything}",
-      "DownstreamScheme": "https",
+      "SwaggerKey": "notes",
+      "UpstreamPathTemplate": "/api/notes/{everything}",
+      "UpstreamHttpMethod": [
+        "GET",
+        "POST",
+        "PUT",
+        "DELETE",
+        "PATCH"
+      ],
+      "DownstreamPathTemplate": "/api/notes/{everything}",
+      "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "localhost",
-          "Port": 7003
+          "Host": "notes-service",
+          "Port": 80
         }
-      ]
+      ],
+      "RateLimitOptions": {
+        "ClientIdHeader": "ClientId",
+        "EnableRateLimiting": true,
+        "Limit": 5,
+        "Period": "10s",
+        "Wait": "20s"
+      }
     }
   ],
   "SwaggerEndPoints": [
@@ -63,7 +60,7 @@
         {
           "Name": "Fundoo User API",
           "Version": "v1",
-          "Url": "https://localhost:7001/swagger/v1/swagger.json"
+          "Url": "http://user-service/swagger/v1/swagger.json"
         }
       ]
     },
@@ -73,27 +70,12 @@
         {
           "Name": "Fundoo Notes API",
           "Version": "v1",
-          "Url": "https://localhost:7002/swagger/v1/swagger.json"
-        }
-      ]
-    },
-    {
-      "Key": "notifications",
-      "Config": [
-        {
-          "Name": "Fundoo Notification Service",
-          "Version": "v1",
-          "Url": "https://localhost:7003/swagger/v1/swagger.json"
+          "Url": "http://notes-service/swagger/v1/swagger.json"
         }
       ]
     }
   ],
   "GlobalConfiguration": {
-    "BaseUrl": "https://localhost:7000"
-//   , "RateLimitOptions": {
-//      "Limit": 100,
-//      "Period": "1m",
-//      "Wait": "30s"
-//    }
+    "BaseUrl": "http://20.255.50.139:30080"
   }
 }

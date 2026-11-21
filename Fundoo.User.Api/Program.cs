@@ -9,7 +9,8 @@ using Microsoft.OpenApi.Models;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
-//COIDS
+
+// COIDS
 builder.Host.UseSerilog((context, configuration) =>
 {
     configuration
@@ -23,11 +24,8 @@ builder.Host.UseSerilog((context, configuration) =>
 });
 
 builder.Services.AddControllers();
-
 builder.Services.AddFluentValidationAutoValidation();
-
 builder.Services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>();
-
 builder.Services.AddUserInfrastructure(builder.Configuration);
 
 builder.Services
@@ -77,6 +75,14 @@ builder.Services.AddSwaggerGen(options =>
         Description = "Enter your JWT access token."
     });
 
+    options.AddSecurityDefinition("ClientId", new OpenApiSecurityScheme
+    {
+        Name = "ClientId",
+        Type = SecuritySchemeType.ApiKey,
+        In = ParameterLocation.Header,
+        Description = "Enter your Ocelot Client ID. Example: test-client-1"
+    });
+
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
@@ -86,6 +92,17 @@ builder.Services.AddSwaggerGen(options =>
                 {
                     Type = ReferenceType.SecurityScheme,
                     Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        },
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "ClientId"
                 }
             },
             Array.Empty<string>()
@@ -106,37 +123,33 @@ builder.Services.AddRateLimiter(options =>
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 });
 
-//COIDS
+// COIDS
 builder.Services.AddFundooCorrelationIds();
+
 var app = builder.Build();
-//COIDS
+
+// COIDS
 app.UseMiddleware<CorrelationIdMiddleware>();
-if (app.Environment.IsDevelopment())
+
+app.UseSwagger();
+
+app.UseSwaggerUI(options =>
 {
-    app.UseSwagger();
+    options.SwaggerEndpoint(
+        "/swagger/v1/swagger.json",
+        "Fundoo.User.Api v1");
 
-    app.UseSwaggerUI(options =>
-    {
-        options.SwaggerEndpoint(
-            "/swagger/v1/swagger.json",
-            "Fundoo.User.Api v1");
-
-        options.SwaggerEndpoint(
-            "/swagger/v2/swagger.json",
-            "Fundoo.User.Api v2");
-    });
-}
+    options.SwaggerEndpoint(
+        "/swagger/v2/swagger.json",
+        "Fundoo.User.Api v2");
+});
 
 app.UseHttpsRedirection();
-
 app.UseRateLimiter();
-
 app.UseAuthentication();
-
 app.UseAuthorization();
 
 app.MapGet("/test", () => "Hello World!");
-
 app.MapControllers();
 
 app.Run();
