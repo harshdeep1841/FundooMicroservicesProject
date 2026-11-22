@@ -13,14 +13,6 @@
           "Port": 7001
         }
       ]
-      ,
-      "RateLimitOptions": {
-        "ClientIdHeader": "ClientId",
-        "EnableRateLimiting": true,
-        "Limit": 5,
-        "Period": "10s",
-        "Wait": "20s"
-      }
     },
     {
       "SwaggerKey": "notes",
@@ -33,14 +25,7 @@
           "Host": "localhost",
           "Port": 7002
         }
-      ],
-      "RateLimitOptions": {
-        "ClientIdHeader": "ClientId",
-        "EnableRateLimiting": true,
-        "Limit": 5,
-        "Period": "10s",
-        "Wait": "20s"
-      }
+      ]
     },
     {
       "SwaggerKey": "notifications",
@@ -90,10 +75,5 @@
   ],
   "GlobalConfiguration": {
     "BaseUrl": "https://localhost:7000"
-//   , "RateLimitOptions": {
-//      "Limit": 100,
-//      "Period": "1m",
-//      "Wait": "30s"
-//    }
   }
 }
