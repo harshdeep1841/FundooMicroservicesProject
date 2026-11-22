@@ -129,17 +129,18 @@ public class AuthController(IAuthService authService, ILogger<AuthController> lo
     }
     
     
+    [AllowAnonymous]
     [HttpGet("google-login")]
     public IActionResult GoogleLogin()
     {
         var properties = new AuthenticationProperties
         {
-            RedirectUri = Url.Action(nameof(GoogleComplete))
+            RedirectUri = "/api/auth/google-complete"
         };
 
         return Challenge(properties, "Google");
     }
-
+    
     [AllowAnonymous]
     [HttpGet("google-complete")]
     public async Task<IActionResult> GoogleComplete(

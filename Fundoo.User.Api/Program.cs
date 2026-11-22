@@ -1,14 +1,30 @@
+using System.Net;
 using Asp.Versioning;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Fundoo.Observability;
 using Fundoo.User.Api.Validation;
 using Fundoo.User.Infrastructure;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.OpenApi.Models;
 using Serilog;
+using IPNetwork = Microsoft.AspNetCore.HttpOverrides.IPNetwork;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor |
+        ForwardedHeaders.XForwardedProto |
+        ForwardedHeaders.XForwardedHost;
+
+    options.ForwardLimit = 1;
+
+    options.KnownNetworks.Add(
+        new IPNetwork(IPAddress.Parse("10.42.0.0"), 24));
+});
 
 // COIDS
 builder.Host.UseSerilog((context, configuration) =>
@@ -24,8 +40,11 @@ builder.Host.UseSerilog((context, configuration) =>
 });
 
 builder.Services.AddControllers();
+
 builder.Services.AddFluentValidationAutoValidation();
+
 builder.Services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>();
+
 builder.Services.AddUserInfrastructure(builder.Configuration);
 
 builder.Services
@@ -128,6 +147,8 @@ builder.Services.AddFundooCorrelationIds();
 
 var app = builder.Build();
 
+app.UseForwardedHeaders();
+
 // COIDS
 app.UseMiddleware<CorrelationIdMiddleware>();
 
@@ -145,11 +166,15 @@ app.UseSwaggerUI(options =>
 });
 
 app.UseHttpsRedirection();
+
 app.UseRateLimiter();
+
 app.UseAuthentication();
+
 app.UseAuthorization();
 
 app.MapGet("/test", () => "Hello World!");
+
 app.MapControllers();
 
 app.Run();
