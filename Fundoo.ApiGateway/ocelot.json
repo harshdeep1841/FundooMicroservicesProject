@@ -17,14 +17,7 @@
           "Host": "user-service",
           "Port": 80
         }
-      ],
-      "RateLimitOptions": {
-        "ClientIdHeader": "ClientId",
-        "EnableRateLimiting": true,
-        "Limit": 5,
-        "Period": "10s",
-        "Wait": "20s"
-      }
+      ]
     },
     {
       "SwaggerKey": "notes",
@@ -43,14 +36,7 @@
           "Host": "notes-service",
           "Port": 80
         }
-      ],
-      "RateLimitOptions": {
-        "ClientIdHeader": "ClientId",
-        "EnableRateLimiting": true,
-        "Limit": 5,
-        "Period": "10s",
-        "Wait": "20s"
-      }
+      ]
     }
   ],
   "SwaggerEndPoints": [

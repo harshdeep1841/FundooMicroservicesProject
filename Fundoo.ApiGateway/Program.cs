@@ -48,7 +48,7 @@ app.UseSwaggerForOcelotUI(options =>
 {
     options.PathToSwaggerGenerator = "/swagger/docs";
 });
-
+app.UseRateLimiter();
 await app.UseOcelot();
 
 await app.RunAsync();
