@@ -1,15 +1,30 @@
+using System.Net;
 using Asp.Versioning;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Fundoo.Observability;
 using Fundoo.User.Api.Validation;
 using Fundoo.User.Infrastructure;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.OpenApi.Models;
 using Serilog;
+using IPNetwork = Microsoft.AspNetCore.HttpOverrides.IPNetwork;
 
 var builder = WebApplication.CreateBuilder(args);
-//COIDS
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor |
+        ForwardedHeaders.XForwardedProto |
+        ForwardedHeaders.XForwardedHost;
+
+    options.ForwardLimit = 1;
+
+    options.KnownNetworks.Add(
+        new IPNetwork(IPAddress.Parse("10.42.0.0"), 24));
+});//COIDS
 builder.Host.UseSerilog((context, configuration) =>
 {
     configuration
@@ -109,6 +124,9 @@ builder.Services.AddRateLimiter(options =>
 //COIDS
 builder.Services.AddFundooCorrelationIds();
 var app = builder.Build();
+
+app.UseForwardedHeaders();
+
 //COIDS
 app.UseMiddleware<CorrelationIdMiddleware>();
 if (app.Environment.IsDevelopment())
