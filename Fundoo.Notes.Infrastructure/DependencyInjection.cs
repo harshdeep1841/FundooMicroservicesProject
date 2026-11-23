@@ -38,7 +38,8 @@ public static class DependencyInjection
         });
 
         services.AddScoped<INotesCache, RedisNotesCache>();
-
+        services.AddScoped<ILabelRepository, LabelRepository>();
+        services.AddScoped<ILabelService, LabelService>();
         return services;
     }
 }

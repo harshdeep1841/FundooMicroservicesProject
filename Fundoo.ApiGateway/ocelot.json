@@ -28,6 +28,19 @@
       ]
     },
     {
+      "SwaggerKey": "notes",
+      "UpstreamPathTemplate": "/api/labels/{everything}",
+      "UpstreamHttpMethod": ["GET", "POST", "PUT", "DELETE", "PATCH"],
+      "DownstreamPathTemplate": "/api/labels/{everything}",
+      "DownstreamScheme": "https",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "localhost",
+          "Port": 7002
+        }
+      ]
+    },
+    {
       "SwaggerKey": "notifications",
       "UpstreamPathTemplate": "/api/notifications/{everything}",
       "UpstreamHttpMethod": ["GET", "POST", "PUT", "DELETE", "PATCH"],
