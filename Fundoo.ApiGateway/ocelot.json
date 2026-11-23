@@ -27,6 +27,32 @@
       ]
     },
     {
+      "SwaggerKey": "notes",
+      "UpstreamPathTemplate": "/api/labels",
+      "UpstreamHttpMethod": ["GET", "POST"],
+      "DownstreamPathTemplate": "/api/labels",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "notes-service",
+          "Port": 80
+        }
+      ]
+    },
+    {
+      "SwaggerKey": "notes",
+      "UpstreamPathTemplate": "/api/labels/{everything}",
+      "UpstreamHttpMethod": ["GET", "POST", "PUT", "DELETE", "PATCH"],
+      "DownstreamPathTemplate": "/api/labels/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "notes-service",
+          "Port": 80
+        }
+      ]
+    },
+    {
       "UpstreamPathTemplate": "/signin-oidc",
       "UpstreamHttpMethod": ["GET", "POST"],
       "DownstreamPathTemplate": "/signin-oidc",
@@ -34,6 +60,18 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "user-service",
+          "Port": 80
+        }
+      ]
+    },
+    {
+      "UpstreamPathTemplate": "/api/notifications/{everything}",
+      "UpstreamHttpMethod": ["GET", "POST", "PUT", "DELETE", "PATCH"],
+      "DownstreamPathTemplate": "/api/notifications/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "notification-service",
           "Port": 80
         }
       ]
@@ -57,6 +95,16 @@
           "Name": "Fundoo Notes API",
           "Version": "v1",
           "Url": "http://notes-service/swagger/v1/swagger.json"
+        }
+      ]
+    },
+    {
+      "Key": "notifications",
+      "Config": [
+        {
+          "Name": "Fundoo Notifications API",
+          "Version": "v1",
+          "Url": "http://notification-service/swagger/v1/swagger.json"
         }
       ]
     }

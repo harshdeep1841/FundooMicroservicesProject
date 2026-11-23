@@ -13,6 +13,7 @@ using IPNetwork = Microsoft.AspNetCore.HttpOverrides.IPNetwork;
 
 var builder = WebApplication.CreateBuilder(args);
 
+//production
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders =
@@ -26,7 +27,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
         new IPNetwork(IPAddress.Parse("10.42.0.0"), 24));
 });
 
-// COIDS
+// OIDC
 builder.Host.UseSerilog((context, configuration) =>
 {
     configuration
