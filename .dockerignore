@@ -1,0 +1,25 @@
+# Git
+.git
+.gitignore
+
+# IDE files
+.idea
+.vscode
+*.user
+*.suo
+
+# .NET build output
+**/bin
+**/obj
+
+# NuGet packages
+.nuget
+**/.nuget
+
+# Temporary files
+*.tmp
+*.log
+~$*
+
+# Presentation files
+*.pptx
