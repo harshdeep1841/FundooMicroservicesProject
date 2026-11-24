@@ -1,4 +1,3 @@
-
 pipeline {
     agent any
 
@@ -40,12 +39,17 @@ pipeline {
 
                     docker run --rm \
                       --user "$(id -u):$(id -g)" \
-                      -e HOME=/tmp \
+                      -e HOME=/tmp/dotnet-home \
+                      -e DOTNET_CLI_HOME=/tmp/dotnet-home \
+                      -e DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 \
+                      -e DOTNET_CLI_TELEMETRY_OPTOUT=1 \
+                      -e DOTNET_NOLOGO=1 \
                       -e NUGET_PACKAGES=/src/.nuget/packages \
                       -v "$WORKSPACE:/src" \
                       -w /src \
                       "$DOTNET_IMAGE" \
                       sh -c '
+                        mkdir -p "$HOME" &&
                         dotnet restore Fundoo.Notes.Api/Fundoo.Notes.Api.csproj &&
                         dotnet restore Fundoo.Notes.UnitTests/Fundoo.Notes.UnitTests.csproj &&
                         dotnet build Fundoo.Notes.Api/Fundoo.Notes.Api.csproj -c Release --no-restore &&
