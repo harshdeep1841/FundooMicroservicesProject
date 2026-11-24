@@ -41,6 +41,7 @@ pipeline {
                       --user "$(id -u):$(id -g)" \
                       -e HOME=/tmp/dotnet-home \
                       -e DOTNET_CLI_HOME=/tmp/dotnet-home \
+                      -e XDG_RUNTIME_DIR=/tmp/dotnet-runtime \
                       -e DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 \
                       -e DOTNET_CLI_TELEMETRY_OPTOUT=1 \
                       -e DOTNET_NOLOGO=1 \
@@ -49,7 +50,8 @@ pipeline {
                       -w /src \
                       "$DOTNET_IMAGE" \
                       sh -c '
-                        mkdir -p "$HOME" &&
+                        mkdir -p "$HOME" "$XDG_RUNTIME_DIR" &&
+                        chmod 700 "$XDG_RUNTIME_DIR" &&
                         dotnet restore Fundoo.Notes.Api/Fundoo.Notes.Api.csproj &&
                         dotnet restore Fundoo.Notes.UnitTests/Fundoo.Notes.UnitTests.csproj &&
                         dotnet build Fundoo.Notes.Api/Fundoo.Notes.Api.csproj -c Release --no-restore &&
