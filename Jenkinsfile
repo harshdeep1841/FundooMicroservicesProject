@@ -55,7 +55,8 @@ pipeline {
                         dotnet restore Fundoo.Notes.Api/Fundoo.Notes.Api.csproj &&
                         dotnet restore Fundoo.Notes.UnitTests/Fundoo.Notes.UnitTests.csproj &&
                         dotnet build Fundoo.Notes.Api/Fundoo.Notes.Api.csproj -c Release --no-restore &&
-                        dotnet test Fundoo.Notes.UnitTests/Fundoo.Notes.UnitTests.csproj -c Release --no-restore --logger "console;verbosity=normal"
+                        dotnet test Fundoo.Notes.UnitTests/Fundoo.Notes.UnitTests.csproj -c Release --no-restore --logger "console;verbosity=normal" &&
+                        dotnet publish Fundoo.Notes.Api/Fundoo.Notes.Api.csproj -c Release --no-build --no-restore -o /src/artifacts/notes
                       '
                 '''
             }
@@ -65,7 +66,6 @@ pipeline {
             steps {
                 sh '''
                     docker build \
-                      --build-arg PROJECT_PATH=Fundoo.Notes.Api/Fundoo.Notes.Api.csproj \
                       --build-arg APP_DLL=Fundoo.Notes.Api.dll \
                       -t "$DOCKER_IMAGE:$IMAGE_TAG" \
                       .
