@@ -65,3 +65,7 @@ coverage/
 *.tmp
 *.bak
 
+
+# Jenkins pipeline and Docker files
+!Jenkinsfile.user
+!Dockerfile.user
