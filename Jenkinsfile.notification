@@ -1,0 +1,147 @@
+pipeline {
+
+    agent any
+
+    options {
+        disableConcurrentBuilds()
+        timestamps()
+        timeout(time: 30, unit: 'MINUTES')
+    }
+
+    environment {
+        DOCKER_IMAGE = 'harshdeep0406/fundoo-notification'
+        K8S_NAMESPACE = 'fundoo'
+        K8S_DEPLOYMENT = 'notification-deploy'
+        K8S_CONTAINER = 'notification'
+        DOTNET_IMAGE = 'mcr.microsoft.com/dotnet/sdk:8.0'
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                checkout scm
+
+                script {
+                    env.IMAGE_TAG = sh(
+                        script: 'git rev-parse --short=7 HEAD',
+                        returnStdout: true
+                    ).trim()
+
+                    echo "Building Notification service commit: ${env.IMAGE_TAG}"
+                }
+            }
+        }
+
+        stage('Restore and Build') {
+            steps {
+                sh '''
+                    set -eu
+
+                    docker run --rm \
+                      --user "$(id -u):$(id -g)" \
+                      -e HOME=/tmp/dotnet-home \
+                      -e DOTNET_CLI_HOME=/tmp/dotnet-home \
+                      -e XDG_RUNTIME_DIR=/tmp/dotnet-runtime \
+                      -e DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 \
+                      -e DOTNET_CLI_TELEMETRY_OPTOUT=1 \
+                      -e DOTNET_NOLOGO=1 \
+                      -e NUGET_PACKAGES=/src/.nuget/packages \
+                      -v "$WORKSPACE:/src" \
+                      -w /src \
+                      "$DOTNET_IMAGE" \
+                      sh -c '
+                        mkdir -p "$HOME" "$XDG_RUNTIME_DIR" &&
+                        chmod 700 "$XDG_RUNTIME_DIR" &&
+                        dotnet restore Fundoo.NotificationService.Api/Fundoo.NotificationService.Api.csproj &&
+                        dotnet build Fundoo.NotificationService.Api/Fundoo.NotificationService.Api.csproj \
+                          -c Release --no-restore &&
+                        dotnet publish Fundoo.NotificationService.Api/Fundoo.NotificationService.Api.csproj \
+                          -c Release --no-build --no-restore \
+                          -o /src/artifacts/notification
+                      '
+                '''
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh '''
+                    docker build \
+                      --file Dockerfile.notification \
+                      --build-arg APP_DLL=Fundoo.NotificationService.Api.dll \
+                      -t "$DOCKER_IMAGE:$IMAGE_TAG" \
+                      .
+                '''
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-credentials',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_TOKEN'
+                    )
+                ]) {
+                    sh '''
+                        set +x
+                        set -eu
+
+                        export DOCKER_CONFIG="$(mktemp -d)"
+                        trap 'docker logout >/dev/null 2>&1 || true; rm -rf "$DOCKER_CONFIG"' EXIT
+
+                        printf '%s' "$DOCKER_TOKEN" |
+                          docker login \
+                            --username "$DOCKER_USER" \
+                            --password-stdin
+
+                        docker push "$DOCKER_IMAGE:$IMAGE_TAG"
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                withCredentials([
+                    file(
+                        credentialsId: 'k3s-fundoo-kubeconfig',
+                        variable: 'KUBECONFIG_FILE'
+                    )
+                ]) {
+                    sh '''
+                        set -eu
+
+                        export KUBECONFIG="$KUBECONFIG_FILE"
+
+                        /usr/local/bin/kubectl set image \
+                          deployment/"$K8S_DEPLOYMENT" \
+                          "$K8S_CONTAINER"="$DOCKER_IMAGE:$IMAGE_TAG" \
+                          -n "$K8S_NAMESPACE"
+
+                        /usr/local/bin/kubectl rollout status \
+                          deployment/"$K8S_DEPLOYMENT" \
+                          -n "$K8S_NAMESPACE" \
+                          --timeout=180s
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Notification deployment successful: ${env.DOCKER_IMAGE}:${env.IMAGE_TAG}"
+        }
+
+        failure {
+            echo 'Fundoo Notification CI/CD pipeline failed. Check the stage logs.'
+        }
+
+        always {
+            echo 'Fundoo Notification pipeline execution completed.'
+        }
+    }
+}
