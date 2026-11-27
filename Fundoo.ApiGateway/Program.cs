@@ -6,12 +6,20 @@ using Ocelot.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Select configuration according to the hosting environment.
+var ocelotConfigFile = builder.Environment.IsDevelopment()
+    ? "ocelot.Development.json"
+    : "ocelot.json";
+
 builder.Configuration
     .SetBasePath(builder.Environment.ContentRootPath)
     .AddJsonFile(
-        "ocelot.json",
+        ocelotConfigFile,
         optional: false,
         reloadOnChange: true);
+
+Console.WriteLine($"Environment: {builder.Environment.EnvironmentName}");
+Console.WriteLine($"Ocelot configuration loaded: {ocelotConfigFile}");
 
 builder.Services.AddOcelot(builder.Configuration);
 

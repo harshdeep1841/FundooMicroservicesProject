@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Fundoo.User.Api.Contracts;
 using Fundoo.User.Application.Interfaces;
+using Fundoo.User.Application.Models;
 using Fundoo.User.Domain.Entities;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -66,12 +67,13 @@ public class AuthController(IAuthService authService, ILogger<AuthController> lo
         LoginRequest request,
         CancellationToken cancellationToken)
     {
-        var token = await authService.LoginAsync(
+        var tokens = await authService.LoginAsync(
             request.Email,
             request.Password,
+            GetDeviceName(),
             cancellationToken);
 
-        if (token is null)
+        if (tokens is null)
         {
             return Unauthorized(new
             {
@@ -81,8 +83,96 @@ public class AuthController(IAuthService authService, ILogger<AuthController> lo
 
         return Ok(new AuthResponse
         {
-            AccessToken = token
+            AccessToken = tokens.AccessToken,
+            RefreshToken = tokens.RefreshToken,
+            SessionId = tokens.SessionId,
+            ExpiresAtUtc = tokens.ExpiresAtUtc
         });
+    }
+
+   
+    [AllowAnonymous]
+    [HttpPost("refresh")]
+    public async Task<IActionResult> Refresh(
+        RefreshSessionRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.OperationId == Guid.Empty)
+        {
+            return BadRequest(new
+            {
+                message = "A valid operation ID is required."
+            });
+        }
+
+        var (status, tokens) = await authService.RefreshSessionAsync(
+            request.RefreshToken,
+            request.OperationId,
+            cancellationToken);
+
+        if (tokens is not null)
+            return Ok(ToAuthResponse(tokens));
+
+        var message = status switch
+        {
+            SessionRefreshStatus.Expired =>
+                "Your session expired. Sign in again.",
+
+            SessionRefreshStatus.Revoked =>
+                "This session has been ended. Sign in again.",
+
+            SessionRefreshStatus.Reused =>
+                "A reused refresh token ended this session. Sign in again.",
+
+            SessionRefreshStatus.IdempotencyConflict =>
+                "The operation ID was already used with a different request.",
+
+            _ =>
+                "The refresh token is invalid. Sign in again."
+        };
+
+        return status == SessionRefreshStatus.IdempotencyConflict
+            ? Conflict(new { message })
+            : Unauthorized(new { message });
+    }
+
+    [Authorize]
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout(CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var userId) ||
+            !TryGetCurrentSessionId(out var sessionId))
+            return Unauthorized();
+
+        await authService.RevokeSessionAsync(userId, sessionId, cancellationToken);
+        return NoContent();
+    }
+
+    [Authorize]
+    [HttpGet("sessions")]
+    public async Task<IActionResult> GetSessions(CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var userId) ||
+            !TryGetCurrentSessionId(out var sessionId))
+            return Unauthorized();
+
+        var sessions = await authService.GetSessionsAsync(
+            userId, sessionId, cancellationToken);
+        return Ok(sessions);
+    }
+
+    [Authorize]
+    [HttpDelete("sessions/{sessionId:guid}")]
+    public async Task<IActionResult> RevokeSession(
+        Guid sessionId,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+            return Unauthorized();
+
+        var revoked = await authService.RevokeSessionAsync(
+            userId, sessionId, cancellationToken);
+        return revoked ? NoContent() : NotFound();
     }
     
     
@@ -179,14 +269,15 @@ public class AuthController(IAuthService authService, ILogger<AuthController> lo
             });
         }
 
-        var token = await authService.GoogleLoginAsync(
+        var tokens = await authService.GoogleLoginAsync(
             googleUserId,
             email,
             firstName,
             lastName,
+            GetDeviceName(),
             cancellationToken);
 
-        if (token is null)
+        if (tokens is null)
         {
             return Unauthorized(new
             {
@@ -196,8 +287,39 @@ public class AuthController(IAuthService authService, ILogger<AuthController> lo
 
         return Ok(new AuthResponse
         {
-            AccessToken = token
+            AccessToken = tokens.AccessToken,
+            RefreshToken = tokens.RefreshToken,
+            SessionId = tokens.SessionId,
+            ExpiresAtUtc = tokens.ExpiresAtUtc
         });
     }
+
+    private string GetDeviceName()
+        => Request.Headers["X-Device-Name"].FirstOrDefault()
+            ?? Request.Headers["User-Agent"].FirstOrDefault()
+            ?? "Unknown device";
+
+    private bool TryGetCurrentUserId(out Guid userId)
+    {
+        var value = User.FindFirst("sub")?.Value
+            ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return Guid.TryParse(value, out userId);
+    }
+
+    private bool TryGetCurrentSessionId(out Guid sessionId)
+    {
+        var value = User.FindFirst("sid")?.Value
+            ?? User.FindFirst(ClaimTypes.Sid)?.Value;
+        return Guid.TryParse(value, out sessionId);
+    }
+
+    private static AuthResponse ToAuthResponse(AuthSessionTokens tokens)
+        => new()
+        {
+            AccessToken = tokens.AccessToken,
+            RefreshToken = tokens.RefreshToken,
+            SessionId = tokens.SessionId,
+            ExpiresAtUtc = tokens.ExpiresAtUtc
+        };
 
 }

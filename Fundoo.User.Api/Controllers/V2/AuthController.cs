@@ -48,12 +48,15 @@ public class AuthController(IAuthService authService) : ControllerBase
         LoginRequest request,
         CancellationToken cancellationToken)
     {
-        var token = await authService.LoginAsync(
+        var tokens = await authService.LoginAsync(
             request.Email,
             request.Password,
+            Request.Headers["X-Device-Name"].FirstOrDefault()
+                ?? Request.Headers["User-Agent"].FirstOrDefault()
+                ?? "Unknown device",
             cancellationToken);
 
-        if (token is null)
+        if (tokens is null)
         {
             return Unauthorized(
                 new { message = "Invalid email or password." });
@@ -61,7 +64,10 @@ public class AuthController(IAuthService authService) : ControllerBase
 
         return Ok(new AuthResponse
         {
-            AccessToken = token
+            AccessToken = tokens.AccessToken,
+            RefreshToken = tokens.RefreshToken,
+            SessionId = tokens.SessionId,
+            ExpiresAtUtc = tokens.ExpiresAtUtc
         });
     }
 }

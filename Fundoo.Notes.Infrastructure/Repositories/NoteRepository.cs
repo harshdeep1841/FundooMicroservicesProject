@@ -18,7 +18,14 @@ public class NoteRepository(NpgsqlDataSource dataSource)
                    is_archived, is_trashed,
                    created_at_utc, updated_at_utc
             FROM notes
-            WHERE id = @id AND user_id = @userId;
+            WHERE id = @id
+              AND is_trashed = FALSE
+              AND (user_id = @userId OR EXISTS (
+                  SELECT 1
+                  FROM note_collaborators nc
+                  WHERE nc.note_id = notes.id
+                    AND nc.collaborator_user_id = @userId
+              ));
             """;
 
         await using var connection =
@@ -47,7 +54,11 @@ public class NoteRepository(NpgsqlDataSource dataSource)
                    is_archived, is_trashed,
                    created_at_utc, updated_at_utc
             FROM notes
-            WHERE user_id = @userId
+            WHERE (user_id = @userId OR EXISTS (
+                      SELECT 1 FROM note_collaborators nc
+                      WHERE nc.note_id = notes.id
+                        AND nc.collaborator_user_id = @userId
+                  ))
               AND is_archived = FALSE
               AND is_trashed = FALSE
             ORDER BY updated_at_utc DESC;
@@ -64,7 +75,11 @@ public class NoteRepository(NpgsqlDataSource dataSource)
                    is_archived, is_trashed,
                    created_at_utc, updated_at_utc
             FROM notes
-            WHERE user_id = @userId
+            WHERE (user_id = @userId OR EXISTS (
+                      SELECT 1 FROM note_collaborators nc
+                      WHERE nc.note_id = notes.id
+                        AND nc.collaborator_user_id = @userId
+                  ))
               AND is_archived = TRUE
               AND is_trashed = FALSE
             ORDER BY updated_at_utc DESC;
@@ -149,6 +164,7 @@ public class NoteRepository(NpgsqlDataSource dataSource)
 
     public async Task<bool> UpdateAsync(
         Note note,
+        Guid requestingUserId,
         CancellationToken cancellationToken)
     {
         const string sql = """
@@ -157,7 +173,11 @@ public class NoteRepository(NpgsqlDataSource dataSource)
                 content = @content,
                 updated_at_utc = @updatedAtUtc
             WHERE id = @id
-              AND user_id = @userId
+              AND (user_id = @userId OR EXISTS (
+                  SELECT 1 FROM note_collaborators nc
+                  WHERE nc.note_id = notes.id
+                    AND nc.collaborator_user_id = @userId
+              ))
               AND is_trashed = FALSE;
             """;
 
@@ -167,7 +187,7 @@ public class NoteRepository(NpgsqlDataSource dataSource)
         await using var command = new NpgsqlCommand(sql, connection);
 
         command.Parameters.AddWithValue("id", note.Id);
-        command.Parameters.AddWithValue("userId", note.UserId);
+        command.Parameters.AddWithValue("userId", requestingUserId);
         command.Parameters.AddWithValue("title", note.Title);
         command.Parameters.AddWithValue("content", note.Content);
         command.Parameters.AddWithValue("updatedAtUtc", note.UpdatedAtUtc);
@@ -270,6 +290,147 @@ public class NoteRepository(NpgsqlDataSource dataSource)
             UpdatedAtUtc = reader.GetFieldValue<DateTime>(7)
         };
     }
+    
+    
+    public async Task<bool> IsOwnedByUserAsync(
+    Guid noteId,
+    Guid userId,
+    CancellationToken cancellationToken)
+{
+    const string sql = """
+        SELECT EXISTS (
+            SELECT 1
+            FROM notes
+            WHERE id = @id
+              AND user_id = @userId
+              AND is_trashed = FALSE
+        );
+        """;
+
+    await using var connection =
+        await dataSource.OpenConnectionAsync(cancellationToken);
+
+    await using var command = new NpgsqlCommand(sql, connection);
+    command.Parameters.AddWithValue("id", noteId);
+    command.Parameters.AddWithValue("userId", userId);
+
+    return (bool)(await command.ExecuteScalarAsync(cancellationToken) ?? false);
+}
+
+public async Task<IReadOnlyList<Guid>> GetUserIdsWithAccessToNoteAsync(
+    Guid noteId,
+    CancellationToken cancellationToken)
+{
+    const string sql = """
+        SELECT user_id FROM notes WHERE id = @noteId
+        UNION
+        SELECT collaborator_user_id FROM note_collaborators WHERE note_id = @noteId;
+        """;
+
+    await using var connection =
+        await dataSource.OpenConnectionAsync(cancellationToken);
+    await using var command = new NpgsqlCommand(sql, connection);
+    command.Parameters.AddWithValue("noteId", noteId);
+
+    await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+    var userIds = new List<Guid>();
+    while (await reader.ReadAsync(cancellationToken))
+        userIds.Add(reader.GetGuid(0));
+
+    return userIds;
+}
+
+public async Task<bool> AddCollaboratorAsync(
+    Guid noteId,
+    Guid ownerId,
+    Guid collaboratorId,
+    CancellationToken cancellationToken)
+{
+    const string sql = """
+        INSERT INTO note_collaborators (
+            note_id,
+            collaborator_user_id,
+            created_at_utc
+        )
+        SELECT @noteId, @collaboratorId, NOW()
+        WHERE EXISTS (
+            SELECT 1
+            FROM notes
+            WHERE id = @noteId
+              AND user_id = @ownerId
+              AND is_trashed = FALSE
+        )
+        ON CONFLICT (note_id, collaborator_user_id) DO NOTHING;
+        """;
+
+    await using var connection =
+        await dataSource.OpenConnectionAsync(cancellationToken);
+
+    await using var command = new NpgsqlCommand(sql, connection);
+    command.Parameters.AddWithValue("noteId", noteId);
+    command.Parameters.AddWithValue("ownerId", ownerId);
+    command.Parameters.AddWithValue("collaboratorId", collaboratorId);
+
+    return await command.ExecuteNonQueryAsync(cancellationToken) > 0;
+}
+
+public async Task<IReadOnlyList<Guid>?> GetCollaboratorsAsync(
+    Guid noteId,
+    Guid ownerId,
+    CancellationToken cancellationToken)
+{
+    if (!await IsOwnedByUserAsync(noteId, ownerId, cancellationToken))
+        return null;
+
+    const string sql = """
+        SELECT collaborator_user_id
+        FROM note_collaborators
+        WHERE note_id = @noteId
+        ORDER BY created_at_utc;
+        """;
+
+    await using var connection =
+        await dataSource.OpenConnectionAsync(cancellationToken);
+
+    await using var command = new NpgsqlCommand(sql, connection);
+    command.Parameters.AddWithValue("noteId", noteId);
+
+    await using var reader =
+        await command.ExecuteReaderAsync(cancellationToken);
+
+    var collaboratorIds = new List<Guid>();
+
+    while (await reader.ReadAsync(cancellationToken))
+        collaboratorIds.Add(reader.GetGuid(0));
+
+    return collaboratorIds;
+}
+
+public async Task<bool> RemoveCollaboratorAsync(
+    Guid noteId,
+    Guid ownerId,
+    Guid collaboratorId,
+    CancellationToken cancellationToken)
+{
+    const string sql = """
+        DELETE FROM note_collaborators nc
+        USING notes n
+        WHERE nc.note_id = n.id
+          AND n.id = @noteId
+          AND n.user_id = @ownerId
+          AND nc.collaborator_user_id = @collaboratorId;
+        """;
+
+    await using var connection =
+        await dataSource.OpenConnectionAsync(cancellationToken);
+
+    await using var command = new NpgsqlCommand(sql, connection);
+    command.Parameters.AddWithValue("noteId", noteId);
+    command.Parameters.AddWithValue("ownerId", ownerId);
+    command.Parameters.AddWithValue("collaboratorId", collaboratorId);
+
+    return await command.ExecuteNonQueryAsync(cancellationToken) > 0;
+}
     
     
     

@@ -1,5 +1,6 @@
 
 using System.Text;
+using System.Security.Claims;
 using Confluent.Kafka;
 using Fundoo.Observability;
 using Fundoo.User.Application.Interfaces;
@@ -10,6 +11,7 @@ using Fundoo.User.Infrastructure.Repositories;
 using Fundoo.User.Infrastructure.Security;
 using Fundoo.User.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -26,6 +28,7 @@ public static class DependencyInjection
         IConfiguration configuration)
     {
         AddDatabase(services, configuration);
+        AddRefreshOperationProtection(services, configuration);
         AddRepositories(services);
         AddSecurity(services, configuration);
         AddNotificationClient(services, configuration);
@@ -121,6 +124,46 @@ public static class DependencyInjection
 
                         ClockSkew = TimeSpan.FromMinutes(1)
                     };
+
+                options.Events = new JwtBearerEvents
+                {
+                    OnTokenValidated = async context =>
+                    {
+                        var principal = context.Principal;
+                        var userIdValue = principal?.FindFirst("sub")?.Value
+                            ?? principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                        var sessionIdValue = principal?.FindFirst("sid")?.Value
+                            ?? principal?.FindFirst(ClaimTypes.Sid)?.Value;
+
+                        if (!Guid.TryParse(userIdValue, out var userId) ||
+                            !Guid.TryParse(sessionIdValue, out var sessionId))
+                        {
+                            context.Fail("The access token has no valid session.");
+                            return;
+                        }
+
+                        var repository = context.HttpContext.RequestServices
+                            .GetRequiredService<IUserRepository>();
+                        var isActive = await repository.IsSessionActiveAsync(
+                            userId,
+                            sessionId,
+                            DateTime.UtcNow,
+                            context.HttpContext.RequestAborted);
+
+                        if (!isActive)
+                            context.Fail("The session has expired or has been ended.");
+                    },
+                    OnChallenge = async context =>
+                    {
+                        context.HandleResponse();
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        context.Response.ContentType = "application/json";
+                        await context.Response.WriteAsJsonAsync(new
+                        {
+                            message = "Your session has expired or ended. Refresh it or sign in again."
+                        });
+                    }
+                };
             })
 
             // Temporary cookie for Google OIDC authentication
@@ -256,5 +299,32 @@ public static class DependencyInjection
         services.AddSingleton<
             IPasswordResetEventPublisher,
             KafkaPasswordResetEventPublisher>();
+    }
+    
+    
+    private static void AddRefreshOperationProtection(
+        IServiceCollection services,
+        IConfiguration configuration)
+    {
+        var keysPath = configuration["DataProtection:KeysPath"];
+
+        if (string.IsNullOrWhiteSpace(keysPath))
+        {
+            keysPath = Path.Combine(
+                Environment.GetFolderPath(
+                    Environment.SpecialFolder.UserProfile),
+                ".aspnet",
+                "Fundoo-DataProtection-Keys");
+        }
+
+        Directory.CreateDirectory(keysPath);
+
+        services.AddDataProtection()
+            .PersistKeysToFileSystem(new DirectoryInfo(keysPath))
+            .SetApplicationName("Fundoo.User");
+
+        services.AddSingleton<
+            IRefreshOperationProtector,
+            RefreshOperationProtector>();
     }
 }

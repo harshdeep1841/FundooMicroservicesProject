@@ -2,6 +2,7 @@ using Fundoo.Notes.Application.Interfaces;
 using Fundoo.Notes.Application.Services;
 using Fundoo.Notes.Infrastructure.Caching;
 using Fundoo.Notes.Infrastructure.Repositories;
+using Fundoo.Notes.Infrastructure.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
@@ -23,6 +24,22 @@ public static class DependencyInjection
             _ => NpgsqlDataSource.Create(connectionString));
 
         services.AddScoped<INoteRepository, NoteRepository>();
+
+        var userApiUrl =
+            configuration["UserDirectory:BaseUrl"]
+            ?? "http://user-service/";
+
+        var serviceKey =
+            configuration["UserDirectory:ServiceKey"]
+            ?? string.Empty;
+
+        services.AddHttpClient<IUserDirectoryClient, UserDirectoryClient>(client =>
+        {
+            client.BaseAddress = new Uri(userApiUrl);
+            client.DefaultRequestHeaders.Add(
+                "X-Fundoo-Service-Key",
+                serviceKey);
+        });
 
         services.AddScoped<INoteService, NoteService>();
 

@@ -91,6 +91,82 @@ public class NotesController(
             UpdatedAtUtc = note.UpdatedAtUtc
         };
     }
+
+    [HttpPost("{id:guid}/collaborators")]
+    public async Task<IActionResult> AddCollaborator(
+        Guid id,
+        [FromBody] AddCollaboratorRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var ownerId))
+            return Unauthorized();
+
+        var collaboratorId = await noteService.AddCollaboratorAsync(
+            id,
+            ownerId,
+            request.Email,
+            cancellationToken);
+
+        if (collaboratorId is null)
+        {
+            return BadRequest(new
+            {
+                message = "The note, registered user, or collaborator membership could not be found."
+            });
+        }
+
+        return CreatedAtAction(
+            nameof(GetCollaborators),
+            new { id },
+            new CollaboratorResponse(collaboratorId.Value));
+    }
+
+    [HttpGet("{id:guid}/collaborators")]
+    public async Task<IActionResult> GetCollaborators(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var ownerId))
+            return Unauthorized();
+
+        var collaborators = await noteService.GetCollaboratorsAsync(
+            id,
+            ownerId,
+            cancellationToken);
+
+        if (collaborators is null)
+            return NotFound();
+
+        return Ok(collaborators
+            .Select(userId => new CollaboratorResponse(userId))
+            .ToArray());
+    }
+
+    [HttpDelete("{id:guid}/collaborators/{collaboratorId:guid}")]
+    public async Task<IActionResult> RemoveCollaborator(
+        Guid id,
+        Guid collaboratorId,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var ownerId))
+            return Unauthorized();
+
+        var removed = await noteService.RemoveCollaboratorAsync(
+            id,
+            ownerId,
+            collaboratorId,
+            cancellationToken);
+
+        return removed ? NoContent() : NotFound();
+    }
+
+    private bool TryGetCurrentUserId(out Guid userId)
+    {
+        var userIdValue = User.FindFirst("sub")?.Value
+            ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        return Guid.TryParse(userIdValue, out userId);
+    }
     
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> UpdateNote(

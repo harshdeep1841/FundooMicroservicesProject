@@ -17,12 +17,4 @@ public interface INotesCache
         Guid userId,
         CancellationToken cancellationToken);
     
-    Task<Note?> GetNoteAsync(
-        Guid noteId,
-        CancellationToken cancellationToken);
-
-    Task SetNoteAsync(
-        Guid noteId,
-        Note note,
-        CancellationToken cancellationToken);
 }

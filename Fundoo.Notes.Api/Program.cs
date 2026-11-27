@@ -1,5 +1,7 @@
 using System.Text;
+using System.Security.Claims;
 using Fundoo.Notes.Infrastructure;
+using Fundoo.Notes.Application.Interfaces;
 using Fundoo.Observability;
 using HealthChecks.UI.Client;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -76,6 +78,40 @@ builder.Services
 
         options.Events = new JwtBearerEvents
         {
+            OnTokenValidated = async context =>
+            {
+                var principal = context.Principal;
+                var userIdValue = principal?.FindFirst("sub")?.Value
+                    ?? principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var sessionIdValue = principal?.FindFirst("sid")?.Value
+                    ?? principal?.FindFirst(ClaimTypes.Sid)?.Value;
+
+                if (!Guid.TryParse(userIdValue, out var userId) ||
+                    !Guid.TryParse(sessionIdValue, out var sessionId))
+                {
+                    context.Fail("The access token has no valid session.");
+                    return;
+                }
+
+                try
+                {
+                    var userDirectory = context.HttpContext.RequestServices
+                        .GetRequiredService<IUserDirectoryClient>();
+                    var active = await userDirectory.IsSessionActiveAsync(
+                        userId, sessionId, context.HttpContext.RequestAborted);
+
+                    if (!active)
+                        context.Fail("The session has expired or has been ended.");
+                }
+                catch (HttpRequestException exception)
+                {
+                    var logger = context.HttpContext.RequestServices
+                        .GetRequiredService<ILoggerFactory>()
+                        .CreateLogger("SessionValidation");
+                    logger.LogError(exception, "User service session validation failed.");
+                    context.Fail("Session validation is temporarily unavailable.");
+                }
+            },
             OnAuthenticationFailed = context =>
             {
                 var logger = context.HttpContext.RequestServices
@@ -87,6 +123,16 @@ builder.Services
                     "JWT authentication failed.");
 
                 return Task.CompletedTask;
+            },
+            OnChallenge = async context =>
+            {
+                context.HandleResponse();
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsJsonAsync(new
+                {
+                    message = "Your sign-in session is no longer valid. Refresh it or sign in again."
+                });
             }
         };
     });

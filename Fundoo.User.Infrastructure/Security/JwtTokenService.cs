@@ -15,7 +15,7 @@ public class JwtTokenService(
 {
     private readonly JwtOptions _options = options.Value;
 
-    public string CreateAccessToken(AppUser user)
+    public string CreateAccessToken(AppUser user, Guid sessionId)
     {
         Claim[] claims =
         [
@@ -25,7 +25,11 @@ public class JwtTokenService(
 
             new Claim(
                 JwtRegisteredClaimNames.Email,
-                user.Email)
+                user.Email),
+
+            new Claim(
+                JwtRegisteredClaimNames.Sid,
+                sessionId.ToString())
         ];
 
         var key = new SymmetricSecurityKey(
@@ -51,6 +55,9 @@ public class JwtTokenService(
     {
         var randomBytes = RandomNumberGenerator.GetBytes(64);
 
-        return Convert.ToBase64String(randomBytes);
+        return Convert.ToBase64String(randomBytes)
+            .TrimEnd('=')
+            .Replace('+', '-')
+            .Replace('/', '_');
     }
 }

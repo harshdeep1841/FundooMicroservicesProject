@@ -27,6 +27,7 @@ public interface INoteRepository
 
     Task<bool> UpdateAsync(
         Note note,
+        Guid requestingUserId,
         CancellationToken cancellationToken);
 
     Task<bool> SetArchiveStateAsync(
@@ -44,5 +45,31 @@ public interface INoteRepository
     Task<bool> PermanentlyDeleteAsync(
         Guid noteId,
         Guid userId,
+        CancellationToken cancellationToken);
+    
+    Task<bool> IsOwnedByUserAsync(
+        Guid noteId,
+        Guid userId,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<Guid>> GetUserIdsWithAccessToNoteAsync(
+        Guid noteId,
+        CancellationToken cancellationToken);
+
+    Task<bool> AddCollaboratorAsync(
+        Guid noteId,
+        Guid ownerId,
+        Guid collaboratorId,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<Guid>?> GetCollaboratorsAsync(
+        Guid noteId,
+        Guid ownerId,
+        CancellationToken cancellationToken);
+
+    Task<bool> RemoveCollaboratorAsync(
+        Guid noteId,
+        Guid ownerId,
+        Guid collaboratorId,
         CancellationToken cancellationToken);
 }

@@ -6,7 +6,8 @@ namespace Fundoo.Notes.Application.Services;
 
 public class NoteService(
     INoteRepository noteRepository,
-    INotesCache notesCache) : INoteService
+    INotesCache notesCache,
+    IUserDirectoryClient userDirectoryClient ) : INoteService
 {
     public async Task<Note> CreateNoteAsync(
         Guid userId,
@@ -65,27 +66,8 @@ public class NoteService(
         Guid userId,
         CancellationToken cancellationToken)
     {
-        var cachedNote = await notesCache.GetNoteAsync(
-            noteId,
-            cancellationToken);
-
-        if (cachedNote is not null)
-            return cachedNote;
-
-        var note = await noteRepository.GetByIdAsync(
-            noteId,
-            userId,
-            cancellationToken);
-
-        if (note is null)
-            return null;
-
-        await notesCache.SetNoteAsync(
-            noteId,
-            note,
-            cancellationToken);
-
-        return note;
+        return await noteRepository.GetByIdAsync(
+            noteId, userId, cancellationToken);
     }
 
     public async Task<Note?> UpdateNoteAsync(
@@ -103,20 +85,23 @@ public class NoteService(
         if (note is null || note.IsTrashed)
             return null;
 
+        var usersWithAccess = await noteRepository.GetUserIdsWithAccessToNoteAsync(
+            noteId,
+            cancellationToken);
+
         note.Title = title.Trim();
         note.Content = content.Trim();
         note.UpdatedAtUtc = DateTime.UtcNow;
 
         var updated = await noteRepository.UpdateAsync(
             note,
+            userId,
             cancellationToken);
 
         if (!updated)
             return null;
 
-        await notesCache.RemoveUserNotesAsync(
-            userId,
-            cancellationToken);
+        await InvalidateUserNoteListsAsync(usersWithAccess, userId, cancellationToken);
 
         return note;
     }
@@ -126,6 +111,7 @@ public class NoteService(
         Guid userId,
         CancellationToken cancellationToken)
     {
+        var usersWithAccess = await noteRepository.GetUserIdsWithAccessToNoteAsync(noteId, cancellationToken);
         var archived = await noteRepository.SetArchiveStateAsync(
             noteId,
             userId,
@@ -134,9 +120,7 @@ public class NoteService(
 
         if (archived)
         {
-            await notesCache.RemoveUserNotesAsync(
-                userId,
-                cancellationToken);
+            await InvalidateUserNoteListsAsync(usersWithAccess, userId, cancellationToken);
         }
 
         return archived;
@@ -147,6 +131,7 @@ public class NoteService(
         Guid userId,
         CancellationToken cancellationToken)
     {
+        var usersWithAccess = await noteRepository.GetUserIdsWithAccessToNoteAsync(noteId, cancellationToken);
         var unarchived = await noteRepository.SetArchiveStateAsync(
             noteId,
             userId,
@@ -155,9 +140,7 @@ public class NoteService(
 
         if (unarchived)
         {
-            await notesCache.RemoveUserNotesAsync(
-                userId,
-                cancellationToken);
+            await InvalidateUserNoteListsAsync(usersWithAccess, userId, cancellationToken);
         }
 
         return unarchived;
@@ -168,6 +151,7 @@ public class NoteService(
         Guid userId,
         CancellationToken cancellationToken)
     {
+        var usersWithAccess = await noteRepository.GetUserIdsWithAccessToNoteAsync(noteId, cancellationToken);
         var trashed = await noteRepository.SetTrashStateAsync(
             noteId,
             userId,
@@ -176,9 +160,7 @@ public class NoteService(
 
         if (trashed)
         {
-            await notesCache.RemoveUserNotesAsync(
-                userId,
-                cancellationToken);
+            await InvalidateUserNoteListsAsync(usersWithAccess, userId, cancellationToken);
         }
 
         return trashed;
@@ -189,6 +171,7 @@ public class NoteService(
         Guid userId,
         CancellationToken cancellationToken)
     {
+        var usersWithAccess = await noteRepository.GetUserIdsWithAccessToNoteAsync(noteId, cancellationToken);
         var restored = await noteRepository.SetTrashStateAsync(
             noteId,
             userId,
@@ -197,9 +180,7 @@ public class NoteService(
 
         if (restored)
         {
-            await notesCache.RemoveUserNotesAsync(
-                userId,
-                cancellationToken);
+            await InvalidateUserNoteListsAsync(usersWithAccess, userId, cancellationToken);
         }
 
         return restored;
@@ -210,6 +191,7 @@ public class NoteService(
         Guid userId,
         CancellationToken cancellationToken)
     {
+        var usersWithAccess = await noteRepository.GetUserIdsWithAccessToNoteAsync(noteId, cancellationToken);
         var deleted = await noteRepository.PermanentlyDeleteAsync(
             noteId,
             userId,
@@ -217,9 +199,7 @@ public class NoteService(
 
         if (deleted)
         {
-            await notesCache.RemoveUserNotesAsync(
-                userId,
-                cancellationToken);
+            await InvalidateUserNoteListsAsync(usersWithAccess, userId, cancellationToken);
         }
 
         return deleted;
@@ -241,5 +221,86 @@ public class NoteService(
         return noteRepository.GetTrashedByUserIdAsync(
             userId,
             cancellationToken);
+    }
+    
+    
+    public async Task<Guid?> AddCollaboratorAsync(
+        Guid noteId,
+        Guid ownerId,
+        string email,
+        CancellationToken cancellationToken)
+    {
+        if (!await noteRepository.IsOwnedByUserAsync(
+                noteId, ownerId, cancellationToken))
+        {
+            return null;
+        }
+
+        var collaboratorId =
+            await userDirectoryClient.FindUserIdByEmailAsync(
+                email.Trim(),
+                cancellationToken);
+
+        if (collaboratorId is null || collaboratorId == ownerId)
+            return null;
+
+        var added = await noteRepository.AddCollaboratorAsync(
+            noteId,
+            ownerId,
+            collaboratorId.Value,
+            cancellationToken);
+
+        if (!added)
+            return null;
+
+        await notesCache.RemoveUserNotesAsync(ownerId, cancellationToken);
+        await notesCache.RemoveUserNotesAsync(
+            collaboratorId.Value,
+            cancellationToken);
+
+        return collaboratorId;
+    }
+
+    public Task<IReadOnlyList<Guid>?> GetCollaboratorsAsync(
+        Guid noteId,
+        Guid ownerId,
+        CancellationToken cancellationToken)
+    {
+        return noteRepository.GetCollaboratorsAsync(
+            noteId, ownerId, cancellationToken);
+    }
+
+    public async Task<bool> RemoveCollaboratorAsync(
+        Guid noteId,
+        Guid ownerId,
+        Guid collaboratorId,
+        CancellationToken cancellationToken)
+    {
+        var removed = await noteRepository.RemoveCollaboratorAsync(
+            noteId,
+            ownerId,
+            collaboratorId,
+            cancellationToken);
+
+        if (removed)
+        {
+            await notesCache.RemoveUserNotesAsync(ownerId, cancellationToken);
+            await notesCache.RemoveUserNotesAsync(
+                collaboratorId,
+                cancellationToken);
+        }
+
+        return removed;
+    }
+
+    private async Task InvalidateUserNoteListsAsync(
+        IReadOnlyList<Guid> userIds,
+        Guid requestingUserId,
+        CancellationToken cancellationToken)
+    {
+        foreach (var userId in userIds.Append(requestingUserId).Distinct())
+        {
+            await notesCache.RemoveUserNotesAsync(userId, cancellationToken);
+        }
     }
 }

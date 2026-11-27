@@ -4,5 +4,6 @@ namespace Fundoo.User.Application.Interfaces;
 
 public interface ITokenService
 {
-    string CreateAccessToken(AppUser user);
+    string CreateAccessToken(AppUser user, Guid sessionId);
+    string CreateRefreshToken();
 }

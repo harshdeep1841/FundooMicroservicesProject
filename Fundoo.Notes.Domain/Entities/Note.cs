@@ -20,4 +20,7 @@ public class Note
     
     public ICollection<NoteLabel> NoteLabels { get; set; }
         = new List<NoteLabel>();
+    
+    public ICollection<NoteCollaborator> Collaborators { get; set; }
+        = new List<NoteCollaborator>();
 }

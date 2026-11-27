@@ -60,4 +60,21 @@ public interface INoteService
     public Task<IReadOnlyList<Note>> GetTrashedNotesAsync(
         Guid userId,
         CancellationToken cancellationToken);
+    
+    Task<Guid?> AddCollaboratorAsync(
+        Guid noteId,
+        Guid ownerId,
+        string email,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<Guid>?> GetCollaboratorsAsync(
+        Guid noteId,
+        Guid ownerId,
+        CancellationToken cancellationToken);
+
+    Task<bool> RemoveCollaboratorAsync(
+        Guid noteId,
+        Guid ownerId,
+        Guid collaboratorId,
+        CancellationToken cancellationToken);
 }
